@@ -24,3 +24,5 @@ pids/
 # Claude Code configuration
 .claude
 .idea
+bot.cjs
+play.cjs

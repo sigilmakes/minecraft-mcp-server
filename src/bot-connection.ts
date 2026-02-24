@@ -11,6 +11,8 @@ interface BotConfig {
   host: string;
   port: number;
   username: string;
+  auth: 'microsoft' | 'offline';
+  profilesFolder: string;
 }
 
 interface ConnectionCallbacks {
@@ -54,8 +56,14 @@ export class BotConnection {
       host: this.config.host,
       port: this.config.port,
       username: this.config.username,
+      auth: this.config.auth as 'microsoft' | 'offline',
       plugins: { pathfinder },
+      ...(this.config.auth === 'microsoft' ? { profilesFolder: this.config.profilesFolder } : {}),
     };
+
+    if (this.config.auth === 'microsoft') {
+      this.callbacks.onLog('info', `Using Microsoft auth (tokens cached in ${this.config.profilesFolder})`);
+    }
 
     this.bot = mineflayer.createBot(botOptions);
     this.state = 'connecting';
