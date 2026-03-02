@@ -94,16 +94,27 @@ export function registerBlockTools(factory: ToolFactory, getBot: () => mineflaye
       const block = bot.blockAt(blockPos);
 
       if (!block || block.name === 'air') {
-        return factory.createResponse(`No block found at position (${x}, ${y}, ${z})`);
+        return factory.createResponse(`No block to dig at (${x}, ${y}, ${z}) — it's air`);
       }
 
+      // Navigate closer if we can't dig from here
       if (!bot.canDigBlock(block) || !bot.canSeeBlock(block)) {
         const goal = new goals.GoalNear(x, y, z, 2);
         await bot.pathfinder.goto(goal);
       }
 
-      await bot.dig(block);
-      return factory.createResponse(`Dug ${block.name} at (${x}, ${y}, ${z})`);
+      // Re-check the block after moving — it may have changed
+      const freshBlock = bot.blockAt(blockPos);
+      if (!freshBlock || freshBlock.name === 'air') {
+        return factory.createResponse(`Block at (${x}, ${y}, ${z}) is now air — may have already been mined or updated`);
+      }
+
+      if (!bot.canDigBlock(freshBlock)) {
+        return factory.createResponse(`Cannot dig ${freshBlock.name} at (${x}, ${y}, ${z}) — may need a better tool`);
+      }
+
+      await bot.dig(freshBlock);
+      return factory.createResponse(`Dug ${freshBlock.name} at (${x}, ${y}, ${z})`);
     }
   );
 

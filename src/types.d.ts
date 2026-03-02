@@ -3,5 +3,10 @@ declare module 'mineflayer-pathfinder' {
 
   export class Movements {
     constructor(_bot: Bot, _mcData: unknown);
+    canDig: boolean;
+    allow1by1towers: boolean;
+    allowParkour: boolean;
+    canOpenDoors: boolean;
+    maxDropDown: number;
   }
 }

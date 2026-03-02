@@ -110,20 +110,110 @@ export function registerPositionTools(factory: ToolFactory, getBot: () => minefl
 
   factory.registerTool(
     "move-in-direction",
-    "Move the bot in a specific direction for a duration",
+    "Move the bot in a specific direction for a duration. Automatically sprint-jumps to clear 1-block obstacles. Reports if the bot got stuck.",
     {
       direction: z.enum(['forward', 'back', 'left', 'right']).describe("Direction to move"),
       duration: z.number().optional().describe("Duration in milliseconds (default: 1000)")
     },
     async ({ direction, duration = 1000 }: { direction: Direction, duration?: number }) => {
       const bot = getBot();
+      const startPos = bot.entity.position.clone();
+
       return new Promise((resolve) => {
         bot.setControlState(direction, true);
+        bot.setControlState('sprint', true);
+
+        // Check for stuck every 500ms and try jumping to clear obstacles
+        let stuckChecks = 0;
+        let lastCheckPos = startPos.clone();
+        const stuckInterval = setInterval(() => {
+          const currentPos = bot.entity.position;
+          const movedSinceCheck = currentPos.distanceTo(lastCheckPos);
+          if (movedSinceCheck < 0.1) {
+            // Not moving — try jumping to clear a 1-block step
+            stuckChecks++;
+            bot.setControlState('jump', true);
+            setTimeout(() => bot.setControlState('jump', false), 250);
+          } else {
+            stuckChecks = 0;
+          }
+          lastCheckPos = currentPos.clone();
+        }, 500);
+
         setTimeout(() => {
+          clearInterval(stuckInterval);
           bot.setControlState(direction, false);
-          resolve(factory.createResponse(`Moved ${direction} for ${duration}ms`));
+          bot.setControlState('sprint', false);
+          bot.setControlState('jump', false);
+
+          const endPos = bot.entity.position;
+          const totalDist = startPos.distanceTo(endPos);
+          const pos = `(${Math.floor(endPos.x)}, ${Math.floor(endPos.y)}, ${Math.floor(endPos.z)})`;
+
+          if (totalDist < 0.5) {
+            resolve(factory.createResponse(
+              `Stuck! Moved ${direction} for ${duration}ms but didn't go anywhere. Position: ${pos}. Try pathfinding to a different location or use unstuck.`
+            ));
+          } else {
+            resolve(factory.createResponse(
+              `Moved ${direction} for ${duration}ms (${totalDist.toFixed(1)} blocks). Position: ${pos}`
+            ));
+          }
         }, duration);
       });
+    }
+  );
+
+  factory.registerTool(
+    "unstuck",
+    "Emergency recovery when the bot is stuck. Stops all movement, clears pathfinder, and attempts to free the bot by jumping and moving randomly.",
+    {},
+    async () => {
+      const bot = getBot();
+
+      // Stop everything
+      const controls: Direction[] = ['forward', 'back', 'left', 'right'];
+      for (const ctrl of controls) {
+        bot.setControlState(ctrl, false);
+      }
+      bot.setControlState('sprint', false);
+      bot.setControlState('jump', false);
+      bot.setControlState('sneak', false);
+      bot.pathfinder.stop();
+
+      const startPos = bot.entity.position.clone();
+
+      // Try jumping
+      bot.setControlState('jump', true);
+      await new Promise(r => setTimeout(r, 300));
+      bot.setControlState('jump', false);
+      await new Promise(r => setTimeout(r, 200));
+
+      // Try moving in a random direction while jumping
+      const dirs: Direction[] = ['forward', 'back', 'left', 'right'];
+      for (const dir of dirs) {
+        bot.setControlState(dir, true);
+        bot.setControlState('jump', true);
+        await new Promise(r => setTimeout(r, 400));
+        bot.setControlState(dir, false);
+        bot.setControlState('jump', false);
+        await new Promise(r => setTimeout(r, 100));
+
+        const moved = bot.entity.position.distanceTo(startPos);
+        if (moved > 1.0) {
+          const pos = bot.entity.position;
+          return factory.createResponse(
+            `Unstuck! Moved ${moved.toFixed(1)} blocks by jumping ${dir}. Position: (${Math.floor(pos.x)}, ${Math.floor(pos.y)}, ${Math.floor(pos.z)})`
+          );
+        }
+      }
+
+      // Still stuck — report
+      const pos = bot.entity.position;
+      const moved = pos.distanceTo(startPos);
+      return factory.createResponse(
+        `Recovery attempted but bot may still be stuck (moved ${moved.toFixed(1)} blocks). Position: (${Math.floor(pos.x)}, ${Math.floor(pos.y)}, ${Math.floor(pos.z)}). May need to teleport or dig out.`
+      );
     }
   );
 }

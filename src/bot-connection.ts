@@ -79,6 +79,8 @@ export class BotConnection {
 
       const mcData = minecraftData(bot.version);
       const defaultMove = new Movements(bot, mcData);
+      defaultMove.canDig = false;
+      defaultMove.allow1by1towers = false;
       bot.pathfinder.setMovements(defaultMove);
 
       bot.chat('LLM-powered bot ready to receive instructions!');
