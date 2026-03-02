@@ -19,11 +19,8 @@ export function registerGameStateTools(factory: ToolFactory, getBot: () => minef
     {},
     async () => {
       const bot = getBot();
-      // oxygenLevel is in ticks (max 300), convert to a /20 scale to match health/food
-      const oxygenRaw = bot.oxygenLevel ?? 300;
-      const oxygen = Math.round((oxygenRaw / 300) * 20);
       return factory.createResponse(
-        `Health: ${bot.health}/20 | Food: ${bot.food}/20 | Level: ${bot.experience?.level ?? 0} | Oxygen: ${oxygen}/20`
+        `Health: ${Math.round(bot.health)}/20 | Food: ${bot.food}/20 | Level: ${bot.experience?.level ?? 0}`
       );
     }
   );
