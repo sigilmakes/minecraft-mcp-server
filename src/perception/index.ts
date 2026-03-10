@@ -14,6 +14,11 @@
  * Three channels that talk to each other beats twelve that don't.
  */
 
+export { PerceptionEngine } from './tick.js';
+export type { TickConfig } from './tick.js';
+
+export { extractVitalSigns, extractFieldInput, extractContext } from './extract.js';
+
 export { processSoma, SomaHistory } from './soma.js';
 export type { VitalSigns, SomaState, SomaLevel, SomaBottleneck, SomaTrend, ActiveEffect } from './soma.js';
 
